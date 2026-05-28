@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mural Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #0a0a0f;
+  --surface:  #111118;
+  --card:     #16161f;
+  --border:   #2a2a3a;
+  --accent:   #e8c547;
+  --accent2:  #ff6b35;
+  --accent3:  #4ecdc4;
+  --text:     #e8e8f0;
+  --muted:    #6b6b85;
+  --success:  #4ecdc4;
+  --danger:   #ff4757;
+  --warning:  #ffa502;
+  --radius:   12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Noise texture overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9999; opacity: 0.4;
+}
+
+/* ════════════════ LOGIN ════════════════ */
+#login-screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  z-index: 100;
+  transition: opacity 0.5s, visibility 0.5s;
+}
+#login-screen.hidden { opacity: 0; visibility: hidden; }
+
+.login-box {
+  width: 420px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 40px;
+  position: relative;
+  overflow: hidden;
+}
+.login-box::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+}
+.login-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 42px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.login-sub { color: var(--muted); font-size: 13px; margin-bottom: 36px; }
+
+.form-group { margin-bottom: 20px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.form-input {
+  width: 100%; padding: 12px 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,197,71,0.1); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.2s; text-decoration: none;
+}
+.btn-primary { background: var(--accent); color: #0a0a0f; width: 100%; justify-content: center; font-size: 15px; padding: 14px; }
+.btn-primary:hover { background: #f0d060; transform: translateY(-1px); box-shadow: 0 8px 25px rgba(232,197,71,0.3); }
+.btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 8px; }
+.btn-danger { background: rgba(255,71,87,0.15); color: var(--danger); border: 1px solid rgba(255,71,87,0.3); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-edit { background: rgba(78,205,196,0.15); color: var(--accent3); border: 1px solid rgba(78,205,196,0.3); }
+.btn-edit:hover { background: var(--accent3); color: #0a0a0f; }
+.btn-add { background: var(--accent); color: #0a0a0f; }
+.btn-add:hover { background: #f0d060; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+.login-error { color: var(--danger); font-size: 13px; margin-top: 12px; text-align: center; min-height: 20px; }
+
+/* ════════════════ APP LAYOUT ════════════════ */
+#app { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 260px; min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; left: 0; top: 0; bottom: 0;
+  z-index: 50; transition: transform 0.3s;
+}
+
+.sidebar-logo {
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing: 3px; color: var(--accent);
+}
+.sidebar-logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+
+.nav-section { margin-bottom: 24px; }
+.nav-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  color: var(--muted); padding: 0 12px; margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; border-radius: 10px;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--muted); font-size: 14px; font-weight: 500;
+  margin-bottom: 2px;
+}
+.nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.nav-item.active { background: rgba(232,197,71,0.12); color: var(--accent); }
+.nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+.nav-badge {
+  margin-left: auto; background: var(--accent); color: #0a0a0f;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+}
+
+.sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid var(--border);
+}
+.user-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+}
+.user-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: #0a0a0f;
+  flex-shrink: 0;
+}
+.user-name { font-size: 13px; font-weight: 600; }
+.user-role {
+  font-size: 11px; color: var(--muted);
+  text-transform: capitalize;
+}
+.logout-btn {
+  margin-left: auto; background: none; border: none;
+  color: var(--muted); cursor: pointer; font-size: 18px;
+  padding: 4px; border-radius: 6px; transition: color 0.2s;
+}
+.logout-btn:hover { color: var(--danger); }
+
+/* Main content */
+.main {
+  margin-left: 260px; flex: 1;
+  display: flex; flex-direction: column; min-height: 100vh;
+}
+
+.topbar {
+  padding: 20px 32px; display: flex; align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface); position: sticky; top: 0; z-index: 40;
+}
+.page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing: 2px; color: var(--text);
+}
+.topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+.content { padding: 32px; flex: 1; }
+
+/* ════════════════ DASHBOARD ════════════════ */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px; margin-bottom: 32px;
+}
+.stat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+  position: relative; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+.stat-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+}
+.stat-card.yellow::after { background: var(--accent); }
+.stat-card.orange::after { background: var(--accent2); }
+.stat-card.teal::after   { background: var(--accent3); }
+.stat-card.purple::after { background: #a78bfa; }
+
+.stat-icon { font-size: 28px; margin-bottom: 12px; }
+.stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 1; color: var(--text); }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+.status-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 32px;
+}
+.status-pill {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; text-align: center;
+}
+.status-pill .count { font-family: 'Bebas Neue', sans-serif; font-size: 32px; }
+.status-pill .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.status-pill.active  .count { color: var(--success); }
+.status-pill.damaged .count { color: var(--danger); }
+.status-pill.restored .count { color: var(--warning); }
+.status-pill.removed .count { color: var(--muted); }
+
+/* ════════════════ TABLES ════════════════ */
+.table-container {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.table-header {
+  padding: 20px 24px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--border);
+}
+.table-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; }
+.search-input {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+  width: 220px; transition: border-color 0.2s;
+}
+.search-input:focus { border-color: var(--accent); }
+
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: rgba(255,255,255,0.02); }
+th {
+  padding: 12px 16px; text-align: left;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 14px 16px; font-size: 14px;
+  border-bottom: 1px solid rgba(42,42,58,0.5);
+  transition: background 0.15s;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent3); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+}
+.badge-active   { background: rgba(78,205,196,0.15); color: var(--success); }
+.badge-damaged  { background: rgba(255,71,87,0.15);  color: var(--danger); }
+.badge-restored { background: rgba(255,165,2,0.15);  color: var(--warning); }
+.badge-removed  { background: rgba(107,107,133,0.15); color: var(--muted); }
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.role-badge {
+  padding: 3px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+}
+.role-lead      { background: rgba(232,197,71,0.15); color: var(--accent); }
+.role-assistant { background: rgba(78,205,196,0.15); color: var(--accent3); }
+.role-designer  { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.role-painter   { background: rgba(255,107,53,0.15); color: var(--accent2); }
+
+.actions { display: flex; gap: 6px; }
+
+/* ════════════════ MODAL ════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; opacity: 0; visibility: hidden;
+  transition: opacity 0.25s, visibility 0.25s;
+  padding: 20px;
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 20px; width: 100%; max-width: 520px;
+  max-height: 90vh; overflow-y: auto;
+  transform: translateY(20px);
+  transition: transform 0.25s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-header {
+  padding: 24px 28px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; background: var(--card); z-index: 1;
+}
+.modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; }
+.modal-close { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.2s; }
+.modal-close:hover { color: var(--danger); }
+.modal-body { padding: 24px 28px; }
+.modal-footer { padding: 16px 28px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-select {
+  width: 100%; padding: 12px 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none;
+  transition: border-color 0.2s; appearance: none;
+  cursor: pointer;
+}
+.form-select:focus { border-color: var(--accent); }
+.form-textarea {
+  width: 100%; padding: 12px 16px; min-height: 100px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none;
+  resize: vertical; transition: border-color 0.2s;
+}
+.form-textarea:focus { border-color: var(--accent); }
+
+/* ════════════════ TOAST ════════════════ */
+#toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 999;
+}
+.toast {
+  padding: 14px 20px; border-radius: 12px;
+  font-size: 14px; font-weight: 500; min-width: 260px;
+  display: flex; align-items: center; gap: 10px;
+  animation: slideIn 0.3s ease;
+  border: 1px solid;
+}
+.toast.success { background: rgba(78,205,196,0.1); border-color: rgba(78,205,196,0.3); color: var(--success); }
+.toast.error   { background: rgba(255,71,87,0.1);  border-color: rgba(255,71,87,0.3);  color: var(--danger); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ════════════════ EMPTY STATE ════════════════ */
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--muted);
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* ════════════════ ROLE BANNER ════════════════ */
+.role-banner {
+  padding: 10px 24px;
+  font-size: 12px; font-weight: 600;
+  text-align: center; letter-spacing: 1px;
+}
+.role-banner.admin  { background: rgba(232,197,71,0.1); color: var(--accent); border-bottom: 1px solid rgba(232,197,71,0.2); }
+.role-banner.editor { background: rgba(78,205,196,0.1); color: var(--accent3); border-bottom: 1px solid rgba(78,205,196,0.2); }
+.role-banner.viewer { background: rgba(107,107,133,0.1); color: var(--muted); border-bottom: 1px solid var(--border); }
+
+/* Permission lock icon */
+.locked { opacity: 0.4; cursor: not-allowed !important; pointer-events: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+.page { display: none; }
+.page.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">MURAL SYS</div>
+    <div class="login-sub">Mural Management Platform · Sign in to continue</div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="login-username" type="text" placeholder="Enter username" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="login-password" type="password" placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);text-align:center">
+      Demo → <span style="color:var(--accent)">admin / editor / viewer</span> &nbsp;|&nbsp; password: <span style="color:var(--accent)">password</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP ═══════════════ -->
+<div id="app" style="display:none">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">MURAL SYS</div>
+      <div class="sidebar-logo-sub">Management Platform</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">Overview</div>
+        <div class="nav-item active" onclick="navigate('dashboard')">
+          <span class="icon">📊</span> Dashboard
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Entities</div>
+        <div class="nav-item" onclick="navigate('murals')">
+          <span class="icon">🎨</span> Murals
+        </div>
+        <div class="nav-item" onclick="navigate('artists')">
+          <span class="icon">👤</span> Artists
+        </div>
+        <div class="nav-item" onclick="navigate('crews')">
+          <span class="icon">👥</span> Crews
+        </div>
+        <div class="nav-item" onclick="navigate('locations')">
+          <span class="icon">📍</span> Locations
+        </div>
+        <div class="nav-item" onclick="navigate('records')">
+          <span class="icon">📋</span> Preservation Records
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Relations</div>
+        <div class="nav-item" onclick="navigate('places')">
+          <span class="icon">🗺️</span> Crew ↔ Location
+        </div>
+        <div class="nav-item" onclick="navigate('includes')">
+          <span class="icon">🔗</span> Artist ↔ Mural
+        </div>
+      </div>
+      <div class="nav-section" id="admin-nav" style="display:none">
+        <div class="nav-section-label">Admin</div>
+        <div class="nav-item" onclick="navigate('users')">
+          <span class="icon">🔐</span> Users
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div>
+          <div class="user-name" id="user-name">User</div>
+          <div class="user-role" id="user-role">role</div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="Logout">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="role-banner" id="role-banner"></div>
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+    <div class="content">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="status-grid" id="status-grid"></div>
+        <div class="table-container">
+          <div class="table-header"><span class="table-title">Recent Murals</span></div>
+          <table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Location</th><th>Date</th></tr></thead>
+          <tbody id="dash-murals"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Murals -->
+      <div class="page" id="page-murals">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Murals</span>
+            <div style="display:flex;gap:10px">
+              <input class="search-input" placeholder="🔍  Search murals..." oninput="filterTable('murals-tbody', this.value)"/>
+              <button class="btn btn-add btn-sm" id="add-mural-btn" onclick="openModal('mural')">+ Add Mural</button>
+            </div>
+          </div>
+          <table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Location</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="murals-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Artists -->
+      <div class="page" id="page-artists">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Artists</span>
+            <div style="display:flex;gap:10px">
+              <input class="search-input" placeholder="🔍  Search artists..." oninput="filterTable('artists-tbody', this.value)"/>
+              <button class="btn btn-add btn-sm" id="add-artist-btn" onclick="openModal('artist')">+ Add Artist</button>
+            </div>
+          </div>
+          <table><thead><tr><th>ID</th><th>Handle</th><th>Full Name</th><th>Crew</th><th>Actions</th></tr></thead>
+          <tbody id="artists-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Crews -->
+      <div class="page" id="page-crews">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Crews</span>
+            <div style="display:flex;gap:10px">
+              <input class="search-input" placeholder="🔍  Search crews..." oninput="filterTable('crews-tbody', this.value)"/>
+              <button class="btn btn-add btn-sm" id="add-crew-btn" onclick="openModal('crew')">+ Add Crew</button>
+            </div>
+          </div>
+          <table><thead><tr><th>ID</th><th>Crew Name</th><th>Base City</th><th>Actions</th></tr></thead>
+          <tbody id="crews-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Locations -->
+      <div class="page" id="page-locations">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Locations</span>
+            <div style="display:flex;gap:10px">
+              <input class="search-input" placeholder="🔍  Search locations..." oninput="filterTable('locations-tbody', this.value)"/>
+              <button class="btn btn-add btn-sm" id="add-location-btn" onclick="openModal('location')">+ Add Location</button>
+            </div>
+          </div>
+          <table><thead><tr><th>ID</th><th>Address</th><th>City</th><th>Actions</th></tr></thead>
+          <tbody id="locations-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Records -->
+      <div class="page" id="page-records">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Preservation Records</span>
+            <div style="display:flex;gap:10px">
+              <input class="search-input" placeholder="🔍  Search records..." oninput="filterTable('records-tbody', this.value)"/>
+              <button class="btn btn-add btn-sm" id="add-record-btn" onclick="openModal('record')">+ Add Record</button>
+            </div>
+          </div>
+          <table><thead><tr><th>ID</th><th>Mural</th><th>Description</th><th>Actions</th></tr></thead>
+          <tbody id="records-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Places -->
+      <div class="page" id="page-places">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Crew ↔ Location Relations</span>
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-add btn-sm" id="add-place-btn" onclick="openModal('place')">+ Add Relation</button>
+            </div>
+          </div>
+          <table><thead><tr><th>Crew</th><th>Location</th><th>City</th><th>Since</th><th>Actions</th></tr></thead>
+          <tbody id="places-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Includes -->
+      <div class="page" id="page-includes">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Artist ↔ Mural Relations</span>
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-add btn-sm" id="add-include-btn" onclick="openModal('include')">+ Add Relation</button>
+            </div>
+          </div>
+          <table><thead><tr><th>Artist</th><th>Mural</th><th>Role</th><th>Actions</th></tr></thead>
+          <tbody id="includes-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- Users (admin only) -->
+      <div class="page" id="page-users">
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">System Users</span>
+            <button class="btn btn-add btn-sm" onclick="openModal('user')">+ Add User</button>
+          </div>
+          <table><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody id="users-tbody"></tbody></table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnBg(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-add btn-sm" onclick="submitModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let currentUser = null;
+let currentPage = 'dashboard';
+let modalType   = null;
+let modalMode   = null; // 'add' | 'edit'
+let editId      = null;
+let cache       = {};
+
+// ═══════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+
+  try {
+    const r = await api('/api/auth/login', 'POST', { username, password });
+    currentUser = r.user;
+    showApp();
+  } catch (e) {
+    errEl.textContent = e.message || 'Invalid credentials';
+  }
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-password').value = '';
+}
+
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function showApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').style.display = 'flex';
+  // Setup user info
+  document.getElementById('user-name').textContent  = currentUser.username;
+  document.getElementById('user-role').textContent  = currentUser.role;
+  document.getElementById('user-avatar').textContent = currentUser.username[0].toUpperCase();
+  // Role banner
+  const banner = document.getElementById('role-banner');
+  const roleMessages = {
+    admin:  '🔑 ADMIN — Full access: view, add, edit, delete',
+    editor: '✏️ EDITOR — Can view, add, and edit — cannot delete',
+    viewer: '👁️ VIEWER — Read-only access'
+  };
+  banner.textContent = roleMessages[currentUser.role];
+  banner.className = `role-banner ${currentUser.role}`;
+  // Show admin nav
+  if (currentUser.role === 'admin')
+    document.getElementById('admin-nav').style.display = 'block';
+  navigate('dashboard');
+}
+
+// ═══════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════
+const pageTitles = {
+  dashboard:'Dashboard', murals:'Murals', artists:'Artists',
+  crews:'Crews', locations:'Locations', records:'Preservation Records',
+  places:'Crew ↔ Location', includes:'Artist ↔ Mural', users:'Users'
+};
+
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(`'${page}'`)) el.classList.add('active');
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[page];
+  currentPage = page;
+  loadPage(page);
+}
+
+async function loadPage(page) {
+  const loaders = {
+    dashboard:  loadDashboard,
+    murals:     loadMurals,
+    artists:    loadArtists,
+    crews:      loadCrews,
+    locations:  loadLocations,
+    records:    loadRecords,
+    places:     loadPlaces,
+    includes:   loadIncludes,
+    users:      loadUsers
+  };
+  if (loaders[page]) await loaders[page]();
+}
+
+// ═══════════════════════════════════════════════════════
+//  API HELPER
+// ═══════════════════════════════════════════════════════
+async function api(url, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════
+async function loadDashboard() {
+  const s = await api('/api/stats');
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card yellow"><div class="stat-icon">🎨</div><div class="stat-value">${s.murals}</div><div class="stat-label">Total Murals</div></div>
+    <div class="stat-card orange"><div class="stat-icon">👤</div><div class="stat-value">${s.artists}</div><div class="stat-label">Artists</div></div>
+    <div class="stat-card teal"><div class="stat-icon">👥</div><div class="stat-value">${s.crews}</div><div class="stat-label">Crews</div></div>
+    <div class="stat-card purple"><div class="stat-icon">📍</div><div class="stat-value">${s.locations}</div><div class="stat-label">Locations</div></div>
+  `;
+  document.getElementById('status-grid').innerHTML = `
+    <div class="status-pill active"><div class="count">${s.active}</div><div class="label">Active</div></div>
+    <div class="status-pill damaged"><div class="count">${s.damaged}</div><div class="label">Damaged</div></div>
+    <div class="status-pill restored"><div class="count">${s.restored}</div><div class="label">Restored</div></div>
+    <div class="status-pill removed"><div class="count">${s.removed}</div><div class="label">Removed</div></div>
+  `;
+  const murals = await api('/api/murals');
+  document.getElementById('dash-murals').innerHTML = murals.slice(0,5).map(m => `
+    <tr><td class="mono">#${m.mural_id}</td><td>${m.title}</td>
+    <td>${statusBadge(m.status)}</td>
+    <td>${m.city || '-'}</td>
+    <td>${m.creation_date}</td></tr>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  MURALS
+// ═══════════════════════════════════════════════════════
+async function loadMurals() {
+  const murals = await api('/api/murals');
+  cache.murals = murals;
+  const can = canEdit();
+  document.getElementById('add-mural-btn').className = `btn btn-add btn-sm${can ? '' : ' locked'}`;
+  document.getElementById('murals-tbody').innerHTML = murals.length ? murals.map(m => `
+    <tr data-search="${m.title} ${m.city} ${m.status}">
+      <td class="mono">#${m.mural_id}</td>
+      <td><strong>${m.title}</strong></td>
+      <td>${statusBadge(m.status)}</td>
+      <td>${m.address || '-'}, ${m.city || '-'}</td>
+      <td>${m.creation_date}</td>
+      <td><div class="actions">
+        ${can ? `<button class="btn btn-edit btn-sm" onclick="openEditModal('mural',${m.mural_id})">Edit</button>` : ''}
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('murals',${m.mural_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No murals found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  ARTISTS
+// ═══════════════════════════════════════════════════════
+async function loadArtists() {
+  const artists = await api('/api/artists');
+  cache.artists = artists;
+  const can = canEdit();
+  document.getElementById('artists-tbody').innerHTML = artists.length ? artists.map(a => `
+    <tr data-search="${a.handle} ${a.full_name} ${a.crew_name||''}">
+      <td class="mono">#${a.artist_id}</td>
+      <td><span style="color:var(--accent)">@${a.handle}</span></td>
+      <td>${a.full_name}</td>
+      <td>${a.crew_name || '<span style="color:var(--muted)">Independent</span>'}</td>
+      <td><div class="actions">
+        ${can ? `<button class="btn btn-edit btn-sm" onclick="openEditModal('artist',${a.artist_id})">Edit</button>` : ''}
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('artists',${a.artist_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No artists found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  CREWS
+// ═══════════════════════════════════════════════════════
+async function loadCrews() {
+  const crews = await api('/api/crews');
+  cache.crews = crews;
+  document.getElementById('crews-tbody').innerHTML = crews.length ? crews.map(c => `
+    <tr data-search="${c.crew_name} ${c.base_city}">
+      <td class="mono">#${c.crew_id}</td>
+      <td><strong>${c.crew_name}</strong></td>
+      <td>${c.base_city}</td>
+      <td><div class="actions">
+        ${canEdit() ? `<button class="btn btn-edit btn-sm" onclick="openEditModal('crew',${c.crew_id})">Edit</button>` : ''}
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('crews',${c.crew_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No crews found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOCATIONS
+// ═══════════════════════════════════════════════════════
+async function loadLocations() {
+  const locs = await api('/api/locations');
+  cache.locations = locs;
+  document.getElementById('locations-tbody').innerHTML = locs.length ? locs.map(l => `
+    <tr data-search="${l.address} ${l.city}">
+      <td class="mono">#${l.location_id}</td>
+      <td>${l.address}</td>
+      <td>${l.city}</td>
+      <td><div class="actions">
+        ${canEdit() ? `<button class="btn btn-edit btn-sm" onclick="openEditModal('location',${l.location_id})">Edit</button>` : ''}
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('locations',${l.location_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No locations found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  RECORDS
+// ═══════════════════════════════════════════════════════
+async function loadRecords() {
+  const recs = await api('/api/records');
+  cache.records = recs;
+  document.getElementById('records-tbody').innerHTML = recs.length ? recs.map(r => `
+    <tr data-search="${r.mural_title} ${r.description}">
+      <td class="mono">#${r.record_id}</td>
+      <td>${r.mural_title || '-'}</td>
+      <td style="max-width:400px;white-space:normal">${r.description}</td>
+      <td><div class="actions">
+        ${canEdit() ? `<button class="btn btn-edit btn-sm" onclick="openEditModal('record',${r.record_id})">Edit</button>` : ''}
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('records',${r.record_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No records found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  PLACES
+// ═══════════════════════════════════════════════════════
+async function loadPlaces() {
+  const places = await api('/api/places');
+  cache.places = places;
+  document.getElementById('places-tbody').innerHTML = places.length ? places.map(p => `
+    <tr>
+      <td>${p.crew_name}</td>
+      <td>${p.address}</td>
+      <td>${p.city}</td>
+      <td>${p.since}</td>
+      <td><div class="actions">
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deletePlace(${p.crew_id},${p.location_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No relations found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  INCLUDES
+// ═══════════════════════════════════════════════════════
+async function loadIncludes() {
+  const includes = await api('/api/includes');
+  cache.includes = includes;
+  document.getElementById('includes-tbody').innerHTML = includes.length ? includes.map(i => `
+    <tr>
+      <td><span style="color:var(--accent)">@${i.handle}</span><br><small style="color:var(--muted)">${i.full_name}</small></td>
+      <td>${i.mural_title}</td>
+      <td><span class="role-badge role-${i.role}">${i.role}</span></td>
+      <td><div class="actions">
+        ${canDelete() ? `<button class="btn btn-danger btn-sm" onclick="deleteInclude(${i.artist_id},${i.mural_id})">Delete</button>` : ''}
+      </div></td>
+    </tr>
+  `).join('') : emptyState('No relations found');
+}
+
+// ═══════════════════════════════════════════════════════
+//  USERS
+// ═══════════════════════════════════════════════════════
+async function loadUsers() {
+  if (currentUser.role !== 'admin') return;
+  const users = await api('/api/users');
+  document.getElementById('users-tbody').innerHTML = users.map(u => `
+    <tr>
+      <td class="mono">#${u.user_id}</td>
+      <td>${u.username}</td>
+      <td><span class="role-badge role-${u.role === 'admin' ? 'lead' : u.role === 'editor' ? 'designer' : 'assistant'}">${u.role}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${u.created_at || '-'}</td>
+      <td>${u.user_id != currentUser.user_id ?
+        `<button class="btn btn-danger btn-sm" onclick="deleteItem('users',${u.user_id})">Delete</button>` : 
+        '<span style="color:var(--muted);font-size:12px">You</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════════════════════
+async function openModal(type, data = null) {
+  modalType = type;
+  modalMode = data ? 'edit' : 'add';
+
+  // Pre-load dropdowns
+  if (!cache.crews)     cache.crews     = await api('/api/crews');
+  if (!cache.locations) cache.locations = await api('/api/locations');
+  if (!cache.murals)    cache.murals    = await api('/api/murals');
+  if (!cache.artists)   cache.artists   = await api('/api/artists');
+
+  const title = modalMode === 'add' ? `Add ${typeLabel(type)}` : `Edit ${typeLabel(type)}`;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = buildForm(type, data);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function openEditModal(type, id) {
+  const endpoints = {
+    mural:'murals', artist:'artists', crew:'crews',
+    location:'locations', record:'records'
+  };
+  const all = await api(`/api/${endpoints[type]}`);
+  const idField = { mural:'mural_id', artist:'artist_id', crew:'crew_id', location:'location_id', record:'record_id' };
+  const item = all.find(x => x[idField[type]] == id);
+  editId = id;
+  openModal(type, item);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalType = null; modalMode = null; editId = null;
+}
+
+function closeModalOnBg(e) {
+  if (e.target.id === 'modal-overlay') closeModal();
+}
+
+function buildForm(type, data) {
+  const v = data || {};
+  const crewOptions = (cache.crews || []).map(c =>
+    `<option value="${c.crew_id}" ${v.crew_id==c.crew_id?'selected':''}>${c.crew_name}</option>`).join('');
+  const locationOptions = (cache.locations || []).map(l =>
+    `<option value="${l.location_id}" ${v.location_id==l.location_id?'selected':''}>${l.city} - ${l.address}</option>`).join('');
+  const muralOptions = (cache.murals || []).map(m =>
+    `<option value="${m.mural_id}" ${v.mural_id==m.mural_id?'selected':''}>${m.title}</option>`).join('');
+  const artistOptions = (cache.artists || []).map(a =>
+    `<option value="${a.artist_id}" ${v.artist_id==a.artist_id?'selected':''}>${a.full_name} (@${a.handle})</option>`).join('');
+
+  const idField = modalMode === 'add' ? `
+    <div class="form-group">
+      <label class="form-label">ID</label>
+      <input class="form-input" id="f-id" type="number" min="1" placeholder="Unique numeric ID" value="${v.id||''}"/>
+    </div>` : '';
+
+  const forms = {
+    mural: `${idField}
+      <div class="form-group"><label class="form-label">Title</label>
+        <input class="form-input" id="f-title" type="text" value="${v.title||''}" placeholder="Mural title"/></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-select" id="f-status">
+            ${['active','damaged','restored','removed'].map(s=>`<option value="${s}" ${v.status==s?'selected':''}>${s}</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label class="form-label">Creation Date</label>
+          <input class="form-input" id="f-date" type="date" value="${v.creation_date||''}"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">Location</label>
+        <select class="form-select" id="f-location">${locationOptions}</select></div>`,
+
+    artist: `${idField}
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Handle</label>
+          <input class="form-input" id="f-handle" type="text" value="${v.handle||''}" placeholder="@handle"/></div>
+        <div class="form-group"><label class="form-label">Full Name</label>
+          <input class="form-input" id="f-fullname" type="text" value="${v.full_name||''}" placeholder="Full name"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">Crew (optional)</label>
+        <select class="form-select" id="f-crew"><option value="">Independent</option>${crewOptions}</select></div>`,
+
+    crew: `${idField}
+      <div class="form-group"><label class="form-label">Crew Name</label>
+        <input class="form-input" id="f-crewname" type="text" value="${v.crew_name||''}" placeholder="Crew name"/></div>
+      <div class="form-group"><label class="form-label">Base City</label>
+        <input class="form-input" id="f-basecity" type="text" value="${v.base_city||''}" placeholder="City"/></div>`,
+
+    location: `${idField}
+      <div class="form-group"><label class="form-label">Address</label>
+        <input class="form-input" id="f-address" type="text" value="${v.address||''}" placeholder="Street address"/></div>
+      <div class="form-group"><label class="form-label">City</label>
+        <input class="form-input" id="f-city" type="text" value="${v.city||''}" placeholder="City"/></div>`,
+
+    record: `${idField}
+      <div class="form-group"><label class="form-label">Mural</label>
+        <select class="form-select" id="f-mural">${muralOptions}</select></div>
+      <div class="form-group"><label class="form-label">Description</label>
+        <textarea class="form-textarea" id="f-desc">${v.description||''}</textarea></div>`,
+
+    place: `
+      <div class="form-group"><label class="form-label">Crew</label>
+        <select class="form-select" id="f-crew">${crewOptions}</select></div>
+      <div class="form-group"><label class="form-label">Location</label>
+        <select class="form-select" id="f-location">${locationOptions}</select></div>
+      <div class="form-group"><label class="form-label">Since</label>
+        <input class="form-input" id="f-since" type="date" value="${v.since||''}"/></div>`,
+
+    include: `
+      <div class="form-group"><label class="form-label">Artist</label>
+        <select class="form-select" id="f-artist">${artistOptions}</select></div>
+      <div class="form-group"><label class="form-label">Mural</label>
+        <select class="form-select" id="f-mural">${muralOptions}</select></div>
+      <div class="form-group"><label class="form-label">Role</label>
+        <select class="form-select" id="f-role">
+          ${['lead','assistant','designer','painter'].map(r=>`<option value="${r}" ${v.role==r?'selected':''}>${r}</option>`).join('')}
+        </select></div>`,
+
+    user: `
+      <div class="form-group"><label class="form-label">Username</label>
+        <input class="form-input" id="f-username" type="text" placeholder="Username (min 3 chars)"/></div>
+      <div class="form-group"><label class="form-label">Password</label>
+        <input class="form-input" id="f-password" type="password" placeholder="Password (min 6 chars)"/></div>
+      <div class="form-group"><label class="form-label">Role</label>
+        <select class="form-select" id="f-userrole">
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+        </select></div>`
+  };
+  return forms[type] || '';
+}
+
+async function submitModal() {
+  const g = id => document.getElementById(id)?.value;
+  let endpoint, body;
+
+  try {
+    if (modalType === 'mural') {
+      body = { title: g('f-title'), status: g('f-status'), creation_date: g('f-date'), location_id: +g('f-location') };
+      if (modalMode === 'add') { body.mural_id = +g('f-id'); endpoint = '/api/murals'; await api(endpoint,'POST',body); }
+      else { endpoint = `/api/murals/${editId}`; await api(endpoint,'PUT',body); }
+      await loadMurals();
+
+    } else if (modalType === 'artist') {
+      body = { handle: g('f-handle'), full_name: g('f-fullname'), crew_id: g('f-crew') || null };
+      if (modalMode === 'add') { body.artist_id = +g('f-id'); await api('/api/artists','POST',body); }
+      else { await api(`/api/artists/${editId}`,'PUT',body); }
+      await loadArtists();
+
+    } else if (modalType === 'crew') {
+      body = { crew_name: g('f-crewname'), base_city: g('f-basecity') };
+      if (modalMode === 'add') { body.crew_id = +g('f-id'); await api('/api/crews','POST',body); }
+      else { await api(`/api/crews/${editId}`,'PUT',body); }
+      await loadCrews();
+
+    } else if (modalType === 'location') {
+      body = { address: g('f-address'), city: g('f-city') };
+      if (modalMode === 'add') { body.location_id = +g('f-id'); await api('/api/locations','POST',body); }
+      else { await api(`/api/locations/${editId}`,'PUT',body); }
+      await loadLocations();
+
+    } else if (modalType === 'record') {
+      body = { mural_id: +g('f-mural'), description: g('f-desc') };
+      if (modalMode === 'add') { body.record_id = +g('f-id'); await api('/api/records','POST',body); }
+      else { await api(`/api/records/${editId}`,'PUT',body); }
+      await loadRecords();
+
+    } else if (modalType === 'place') {
+      body = { crew_id: +g('f-crew'), location_id: +g('f-location'), since: g('f-since') };
+      await api('/api/places','POST',body);
+      await loadPlaces();
+
+    } else if (modalType === 'include') {
+      body = { artist_id: +g('f-artist'), mural_id: +g('f-mural'), role: g('f-role') };
+      await api('/api/includes','POST',body);
+      await loadIncludes();
+
+    } else if (modalType === 'user') {
+      body = { username: g('f-username'), password: g('f-password'), role: g('f-userrole') };
+      await api('/api/auth/register','POST',body);
+      await loadUsers();
+    }
+
+    closeModal();
+    toast('Saved successfully! ✓', 'success');
+  } catch (e) {
+    toast(e.message || 'Error saving', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  DELETE
+// ═══════════════════════════════════════════════════════
+async function deleteItem(endpoint, id) {
+  if (!confirm('Are you sure you want to delete this item?')) return;
+  try {
+    await api(`/api/${endpoint}/${id}`, 'DELETE');
+    toast('Deleted successfully', 'success');
+    loadPage(currentPage);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deletePlace(crew_id, location_id) {
+  if (!confirm('Delete this relation?')) return;
+  try {
+    await api(`/api/places/${crew_id}/${location_id}`, 'DELETE');
+    toast('Deleted', 'success'); await loadPlaces();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteInclude(artist_id, mural_id) {
+  if (!confirm('Delete this relation?')) return;
+  try {
+    await api(`/api/includes/${artist_id}/${mural_id}`, 'DELETE');
+    toast('Deleted', 'success'); await loadIncludes();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+function canEdit()   { return ['admin','editor'].includes(currentUser?.role); }
+function canDelete() { return currentUser?.role === 'admin'; }
+
+function statusBadge(s) {
+  return `<span class="badge badge-${s}"><span class="badge-dot"></span>${s}</span>`;
+}
+
+function emptyState(msg) {
+  return `<tr><td colspan="10"><div class="empty-state"><div class="empty-state-icon">🖼️</div><p>${msg}</p></div></td></tr>`;
+}
+
+function typeLabel(t) {
+  const m = { mural:'Mural', artist:'Artist', crew:'Crew', location:'Location',
+               record:'Record', place:'Place Relation', include:'Artist-Mural Relation', user:'User' };
+  return m[t] || t;
+}
+
+function filterTable(tbodyId, q) {
+  const rows = document.querySelectorAll(`#${tbodyId} tr`);
+  const term = q.toLowerCase();
+  rows.forEach(r => {
+    const text = (r.dataset.search || r.textContent).toLowerCase();
+    r.style.display = text.includes(term) ? '' : 'none';
+  });
+}
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span>${msg}`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+</script>
+</body>
+</html>
